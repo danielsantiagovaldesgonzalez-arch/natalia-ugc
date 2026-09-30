@@ -705,30 +705,25 @@
     }
 
     function reveals(){
-     if (RM || !('IntersectionObserver' in window)) { return; }
+     if (RM) { return; }
      var watched = [];
-     // Si la transicion no llega a completarse, forzamos el estado final.
-     // Solo actua sobre lo que ya deberia verse, asi la animacion se respeta.
+
+     // Si la transicion se queda a medio camino, fijamos el estado final.
+     // Solo actua sobre lo que ya deberia verse.
      function ensure(el){
       setTimeout(function(){
        var list = el.classList.contains('split-ready') ? el.querySelectorAll('.w') : [el];
        for (var i = 0; i < list.length; i++) {
         if (parseFloat(getComputedStyle(list[i]).opacity) < 0.05) {
-         // sin transicion: el valor entra de una, no se queda a medio camino
          list[i].style.transition = 'none';
          list[i].style.transitionDelay = '0ms';
          list[i].style.opacity = '1';
          list[i].style.transform = 'none';
         }
        }
-      }, 1300);
+      }, 1700);
      }
      function showNow(el){ el.classList.add('is-in'); ensure(el); }
-     var io = new IntersectionObserver(function(en){
-      for (var k = 0; k < en.length; k++) {
-       if (en[k].isIntersecting) { showNow(en[k].target); io.unobserve(en[k].target); }
-      }
-     }, { threshold: 0, rootMargin: '0px 0px -5% 0px' });
      function below(el){ return el.getBoundingClientRect().top >= innerHeight * 0.92; }
 
      // 1) titulos y frases grandes, palabra por palabra
@@ -743,10 +738,9 @@
       }
       titles[t].classList.add('split-ready');
       watched.push(titles[t]);
-      io.observe(titles[t]);
      }
 
-     // 2) el resto: bloques con caracter, y textos con entrada mas suave
+     // 2) el resto del contenido
      var groups = [
       ['.video-card', 'rise-zoom'],
       ['.card', 'rise'],
@@ -771,14 +765,35 @@
        e.style.transitionDelay = ((n % 6) * 65) + 'ms';
        n++;
        watched.push(e);
-       io.observe(e);
       }
      }
 
-     // red de seguridad: si el observador no responde, aparece todo igual
-     setTimeout(function(){
-      for (var m = 0; m < watched.length; m++) { showNow(watched[m]); }
-     }, 2400);
+     // Cada elemento aparece cuando entra de verdad en pantalla. Nada de
+     // temporizadores a ciegas: se mide la posicion en cada scroll.
+     function check(){
+      for (var i = watched.length - 1; i >= 0; i--) {
+       var r = watched[i].getBoundingClientRect();
+       // basta con que este por encima de la linea: si ya lo pasaste
+       // (por ejemplo saltando con el menu), tiene que quedar visible
+       if (r.top < innerHeight * 0.94) {
+        showNow(watched[i]);
+        watched.splice(i, 1);
+       }
+      }
+     }
+     // Sin requestAnimationFrame: si ese fotograma no llega, el control se
+     // traba y no vuelve a revisar nunca. Freno por tiempo y una revision
+     // final para no perder la ultima posicion.
+     var ultimo = 0, cola = null;
+     function onScroll(){
+      var ahora = Date.now();
+      if (ahora - ultimo >= 70) { ultimo = ahora; check(); }
+      clearTimeout(cola);
+      cola = setTimeout(check, 130);
+     }
+     addEventListener('scroll', onScroll, { passive: true });
+     addEventListener('resize', onScroll, { passive: true });
+     check();
     }
 
     // Numeros que cuentan al entrar. Al terminar se restaura el HTML original
