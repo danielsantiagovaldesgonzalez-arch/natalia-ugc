@@ -3,6 +3,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Natalia · Creadora de contenido UGC</title>
+  <meta name="description" content="Natalia, creadora de contenido UGC en Bogotá. Video vertical para marcas: reseñas, GRWM, unboxing y contenido para ADS. Mira su portafolio, servicios y precios.">
+  <meta name="author" content="Natalia">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://danielsantiagovaldesgonzalez-arch.github.io/natalia-ugc/">
+  <meta property="og:type" content="profile">
+  <meta property="og:site_name" content="Natalia · UGC">
+  <meta property="og:title" content="Natalia · Creadora de contenido UGC">
+  <meta property="og:description" content="Natalia, creadora de contenido UGC en Bogotá. Video vertical para marcas: reseñas, GRWM, unboxing y contenido para ADS. Mira su portafolio, servicios y precios.">
+  <meta property="og:url" content="https://danielsantiagovaldesgonzalez-arch.github.io/natalia-ugc/">
+  <meta property="og:image" content="https://danielsantiagovaldesgonzalez-arch.github.io/natalia-ugc/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Natalia, creadora de contenido UGC en Bogotá">
+  <meta property="og:locale" content="es_CO">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Natalia · Creadora de contenido UGC">
+  <meta name="twitter:description" content="Natalia, creadora de contenido UGC en Bogotá. Video vertical para marcas: reseñas, GRWM, unboxing y contenido para ADS. Mira su portafolio, servicios y precios.">
+  <meta name="twitter:image" content="https://danielsantiagovaldesgonzalez-arch.github.io/natalia-ugc/og.jpg">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Natalia",
+    "jobTitle": "Creadora de contenido UGC",
+    "description": "Natalia, creadora de contenido UGC en Bogotá. Video vertical para marcas: reseñas, GRWM, unboxing y contenido para ADS. Mira su portafolio, servicios y precios.",
+    "url": "https://danielsantiagovaldesgonzalez-arch.github.io/natalia-ugc/",
+    "image": "https://danielsantiagovaldesgonzalez-arch.github.io/natalia-ugc/og.jpg",
+    "email": "ugc.representante@gmail.com",
+    "telephone": "+57 314 288 3226",
+    "address": { "@type": "PostalAddress", "addressLocality": "Bogotá", "addressCountry": "CO" },
+    "knowsLanguage": "es-CO",
+    "sameAs": ["https://www.tiktok.com/@nataliapgon"]
+  }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&amp;family=Work+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
   <style>
     :root{--ink:#0A0A0C;--cream:#F7F3F0;--pink:#FF8FBE;--hot:#FF5C93;--lilac:#C3B0FF;--peach:#FFC49B;--mint:#8DEBCB;--muted:#bdb6b6;--line:rgba(247,243,240,.16)}
@@ -99,6 +133,11 @@
     .cur-on .cur-dot,.cur-on .cur-ring{opacity:1}
     .cur-ring.is-hot{width:58px;height:58px;border-color:rgba(195,176,255,.85);background:rgba(195,176,255,.1)}
     body.cur-hide,body.cur-hide a,body.cur-hide button,body.cur-hide .video-slot{cursor:none}
+    .split-ready .w{display:inline-block;opacity:0;transform:translateY(.55em);transition:opacity .6s cubic-bezier(.22,1,.36,1),transform .6s cubic-bezier(.22,1,.36,1)}
+    .split-ready.is-in .w{opacity:1;transform:none}
+    .rise-soft{opacity:0;transform:translateY(16px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
+    .rise-soft.is-in{opacity:1;transform:none}
+    @media(prefers-reduced-motion:reduce){.split-ready .w,.rise-soft{opacity:1;transform:none;transition:none}}
     .progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:400;background:linear-gradient(90deg,var(--pink),var(--lilac),var(--peach),var(--mint));box-shadow:0 0 12px rgba(255,143,190,.5)}
     .video-card{perspective:900px}
     .video-slot{transform-style:preserve-3d}
@@ -643,38 +682,103 @@
 
     // Apariciones escalonadas. Lo que ya se ve al entrar nunca se esconde,
     // y hay un respaldo por si el observador no responde.
+    // Parte un titulo en palabras para que entren una tras otra.
+    // Solo si es texto plano; si algo falla, el texto se queda como estaba.
+    function splitWords(el){
+     if (el.children.length) { return null; }
+     var txt = el.textContent.replace(/\s+/g, ' ').trim();
+     if (!txt || txt.length > 160) { return null; }
+     var words = txt.split(' ');
+     if (words.length < 2) { return null; }
+     var frag = document.createDocumentFragment(), spans = [];
+     for (var i = 0; i < words.length; i++) {
+      var w = document.createElement('span');
+      w.className = 'w';
+      w.textContent = words[i];
+      frag.appendChild(w);
+      spans.push(w);
+      if (i < words.length - 1) { frag.appendChild(document.createTextNode(' ')); }
+     }
+     el.textContent = '';
+     el.appendChild(frag);
+     return spans;
+    }
+
     function reveals(){
+     if (RM || !('IntersectionObserver' in window)) { return; }
+     var watched = [];
+     // Si la transicion no llega a completarse, forzamos el estado final.
+     // Solo actua sobre lo que ya deberia verse, asi la animacion se respeta.
+     function ensure(el){
+      setTimeout(function(){
+       var list = el.classList.contains('split-ready') ? el.querySelectorAll('.w') : [el];
+       for (var i = 0; i < list.length; i++) {
+        if (parseFloat(getComputedStyle(list[i]).opacity) < 0.05) {
+         // sin transicion: el valor entra de una, no se queda a medio camino
+         list[i].style.transition = 'none';
+         list[i].style.transitionDelay = '0ms';
+         list[i].style.opacity = '1';
+         list[i].style.transform = 'none';
+        }
+       }
+      }, 1300);
+     }
+     function showNow(el){ el.classList.add('is-in'); ensure(el); }
+     var io = new IntersectionObserver(function(en){
+      for (var k = 0; k < en.length; k++) {
+       if (en[k].isIntersecting) { showNow(en[k].target); io.unobserve(en[k].target); }
+      }
+     }, { threshold: 0, rootMargin: '0px 0px -5% 0px' });
+     function below(el){ return el.getBoundingClientRect().top >= innerHeight * 0.92; }
+
+     // 1) titulos y frases grandes, palabra por palabra
+     var titles = document.querySelectorAll('.section-title, blockquote');
+     for (var t = 0; t < titles.length; t++) {
+      if (!below(titles[t])) { continue; }
+      var ws = null;
+      try { ws = splitWords(titles[t]); } catch (e) { ws = null; }
+      if (!ws) { continue; }
+      for (var q = 0; q < ws.length; q++) {
+       ws[q].style.transitionDelay = Math.min(q * 45, 520) + 'ms';
+      }
+      titles[t].classList.add('split-ready');
+      watched.push(titles[t]);
+      io.observe(titles[t]);
+     }
+
+     // 2) el resto: bloques con caracter, y textos con entrada mas suave
      var groups = [
       ['.video-card', 'rise-zoom'],
       ['.card', 'rise'],
       ['.brand-logo-frame', 'rise-zoom'],
       ['.ugc-stat', 'rise-zoom'],
-      ['.section-title, blockquote, .ugc-case, .price-open, .price-table, .eyebrow, .lead', 'rise']
+      ['.ugc-case, .price-open, .price-table', 'rise'],
+      ['main article', 'rise'],
+      ['.eyebrow, .lead, .subtle, figcaption, .ugc-note, .ugc-top-label, .ugc-top li, .price-open-tag', 'rise-soft'],
+      ['main p, main h3, main th, main td', 'rise-soft']
      ];
-     if (RM || !('IntersectionObserver' in window)) { return; }
-     var watched = [];
-     var io = new IntersectionObserver(function(en){
-      for (var k = 0; k < en.length; k++) {
-       if (en[k].isIntersecting) { en[k].target.classList.add('is-in'); io.unobserve(en[k].target); }
-      }
-     }, { threshold: 0, rootMargin: '0px 0px -5% 0px' });
      for (var g = 0; g < groups.length; g++) {
       var els = document.querySelectorAll(groups[g][0]);
       var n = 0;
       for (var i = 0; i < els.length; i++) {
-       if (els[i].classList.contains('rise') || els[i].classList.contains('rise-zoom')) { continue; }
-       var r = els[i].getBoundingClientRect();
-       if (r.top < innerHeight * 0.92) { continue; }
-       els[i].classList.add(groups[g][1]);
-       els[i].style.transitionDelay = ((n % 6) * 70) + 'ms';
+       var e = els[i];
+       if (e.classList.contains('rise') || e.classList.contains('rise-zoom') ||
+           e.classList.contains('rise-soft') || e.classList.contains('split-ready') ||
+           e.classList.contains('reveal')) { continue; }
+       if (e.closest('.lb') || e.closest('header')) { continue; }
+       if (!below(e)) { continue; }
+       e.classList.add(groups[g][1]);
+       e.style.transitionDelay = ((n % 6) * 65) + 'ms';
        n++;
-       watched.push(els[i]);
-       io.observe(els[i]);
+       watched.push(e);
+       io.observe(e);
       }
      }
+
+     // red de seguridad: si el observador no responde, aparece todo igual
      setTimeout(function(){
-      for (var m = 0; m < watched.length; m++) { watched[m].classList.add('is-in'); }
-     }, 2200);
+      for (var m = 0; m < watched.length; m++) { showNow(watched[m]); }
+     }, 2400);
     }
 
     // Numeros que cuentan al entrar. Al terminar se restaura el HTML original
