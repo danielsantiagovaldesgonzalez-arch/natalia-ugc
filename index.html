@@ -128,10 +128,11 @@
     .canva-tag{transition:border-color .3s,background .3s,transform .3s}
     .canva-tag:hover{border-color:var(--pink);background:rgba(255,143,190,.1);transform:translateY(-2px)}
     .photo-slot{will-change:transform}
-    .cur-dot{position:fixed;top:0;left:0;width:7px;height:7px;margin:0;border-radius:50%;background:var(--pink);z-index:500;pointer-events:none;transform:translate3d(-50%,-50%,0);will-change:transform;opacity:0;transition:opacity .3s}
-    .cur-ring{position:fixed;top:0;left:0;width:32px;height:32px;border-radius:50%;border:1.5px solid rgba(255,143,190,.5);z-index:499;pointer-events:none;transform:translate3d(-50%,-50%,0);will-change:transform;opacity:0;transition:opacity .3s,width .3s,height .3s,border-color .3s,background .3s}
-    .cur-on .cur-dot,.cur-on .cur-ring{opacity:1}
-    .cur-ring.is-hot{width:58px;height:58px;border-color:rgba(195,176,255,.85);background:rgba(195,176,255,.1)}
+    .cur-t{position:fixed;top:0;left:0;border-radius:50%;pointer-events:none;z-index:500;transform:translate3d(-50%,-50%,0);will-change:transform;opacity:0;transition:opacity .35s}
+    .cur-on .cur-t{opacity:1}
+    .cur-lab{position:fixed;top:0;left:0;z-index:501;pointer-events:none;transform:translate3d(-50%,-50%,0);will-change:transform}
+    .cur-lab span{display:block;padding:.45rem .85rem;border-radius:999px;background:var(--hot);color:#0A0A0C;font:600 10px/1 'Work Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;opacity:0;transform:scale(.75) translateY(7px);transition:opacity .25s,transform .35s cubic-bezier(.22,1,.36,1);box-shadow:0 10px 26px -12px rgba(255,92,147,.9)}
+    .cur-lab.on span{opacity:1;transform:none}
     body.cur-hide,body.cur-hide a,body.cur-hide button,body.cur-hide .video-slot{cursor:none}
     .split-ready .w{display:inline-block;opacity:0;transform:translateY(.55em);transition:opacity .6s cubic-bezier(.22,1,.36,1),transform .6s cubic-bezier(.22,1,.36,1)}
     .split-ready.is-in .w{opacity:1;transform:none}
@@ -878,43 +879,93 @@
 
     // Cursor propio: un punto que va exacto y un anillo que lo persigue.
     // Solo con raton; nunca en tactil ni con movimiento reducido.
+    // Cursor de estela: una cinta de puntos pastel que fluye detras del raton.
+    // Al pasar sobre algo clicable se recoge y aparece una etiqueta con la accion.
     function cursor(){
      if (RM || !FINE) { return; }
-     var dot = document.createElement('div'); dot.className = 'cur-dot';
-     var ring = document.createElement('div'); ring.className = 'cur-ring';
-     dot.setAttribute('aria-hidden', 'true'); ring.setAttribute('aria-hidden', 'true');
-     document.body.appendChild(dot); document.body.appendChild(ring);
-     var x = innerWidth / 2, y = innerHeight / 2, rx = x, ry = y, on = false;
+     var COL = ['#FF8FBE', '#C3B0FF', '#FFC49B', '#8DEBCB'];
+     var N = 14, pts = [];
+     for (var i = 0; i < N; i++) {
+      var d = document.createElement('div');
+      d.className = 'cur-t';
+      d.setAttribute('aria-hidden', 'true');
+      var s = 13 - i * 0.72;
+      d.style.width = d.style.height = s.toFixed(1) + 'px';
+      d.style.background = COL[i % COL.length];
+      d.style.opacity = '';
+      document.body.appendChild(d);
+      pts.push({ el: d, x: innerWidth / 2, y: innerHeight / 2, base: s });
+     }
+     var lab = document.createElement('div');
+     lab.className = 'cur-lab'; lab.setAttribute('aria-hidden', 'true');
+     lab.innerHTML = '<span></span>';
+     document.body.appendChild(lab);
+     var labTxt = lab.firstChild;
+
+     var mx = innerWidth / 2, my = innerHeight / 2, lx = mx, ly = my;
+     var on = false, k = 1, kTarget = 1, pulse = 0;
+
      addEventListener('pointermove', function(e){
       if (e.pointerType && e.pointerType !== 'mouse') { return; }
-      x = e.clientX; y = e.clientY;
+      mx = e.clientX; my = e.clientY;
       if (!on) {
        on = true;
-       rx = x; ry = y;
-       // el nativo solo se oculta cuando el mio ya esta en pantalla
+       for (var j = 0; j < N; j++) { pts[j].x = mx; pts[j].y = my; }
+       lx = mx; ly = my;
        document.documentElement.classList.add('cur-on');
        document.body.classList.add('cur-hide');
       }
      }, { passive: true });
-     addEventListener('pointerdown', function(){ ring.classList.add('is-hot'); });
-     addEventListener('pointerup', function(){ if (!hot) { ring.classList.remove('is-hot'); } });
      document.addEventListener('mouseleave', function(){
-      on = false; document.documentElement.classList.remove('cur-on');
+      document.documentElement.classList.remove('cur-on'); lab.classList.remove('on');
      });
      document.addEventListener('mouseenter', function(){
-      on = true; document.documentElement.classList.add('cur-on');
+      if (on) { document.documentElement.classList.add('cur-on'); }
      });
-     var hot = false;
+     addEventListener('pointerdown', function(){ pulse = 1; }, { passive: true });
+
+     // que dice la etiqueta segun lo que haya debajo
+     function etiqueta(t){
+      if (!t) { return ''; }
+      if (t.closest('.video-zoom')) { return 'Ampliar'; }
+      if (t.closest('.video-card')) { return 'Reproducir'; }
+      if (t.closest('a[href^="mailto"]')) { return 'Escribir'; }
+      if (t.closest('a[href*="wa.me"]')) { return 'WhatsApp'; }
+      if (t.closest('a[href*="tiktok"]')) { return 'Ver TikTok'; }
+      if (t.closest('.cta')) { return 'Hablemos'; }
+      return '';
+     }
      var SEL = 'a, button, .video-card, article.card, .ugc-stat, .brand-logo-frame, .photo-slot, .canva-tag';
+     var hot = false, txt = '';
      addEventListener('pointerover', function(e){
       var t = e.target && e.target.closest ? e.target.closest(SEL) : null;
-      if (t && !hot) { hot = true; ring.classList.add('is-hot'); }
-      else if (!t && hot) { hot = false; ring.classList.remove('is-hot'); }
+      hot = !!t;
+      kTarget = hot ? 0.42 : 1;
+      var nuevo = etiqueta(e.target);
+      if (nuevo !== txt) {
+       txt = nuevo;
+       if (txt) { labTxt.textContent = txt; lab.classList.add('on'); }
+       else { lab.classList.remove('on'); }
+      }
      }, { passive: true });
+
      (function loop(){
-      rx += (x - rx) * 0.18; ry += (y - ry) * 0.18;
-      dot.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0) translate(-50%,-50%)';
-      ring.style.transform = 'translate3d(' + rx.toFixed(1) + 'px,' + ry.toFixed(1) + 'px,0) translate(-50%,-50%)';
+      k += (kTarget - k) * 0.14;
+      if (pulse > 0) { pulse -= 0.06; if (pulse < 0) { pulse = 0; } }
+      var px = mx, py = my;
+      for (var i = 0; i < N; i++) {
+       var p = pts[i];
+       p.x += (px - p.x) * 0.34;
+       p.y += (py - p.y) * 0.34;
+       var cola = 1 - (i / N) * 0.35;
+       var esc = k * cola * (1 + pulse * 0.9);
+       p.el.style.transform = 'translate3d(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) +
+        'px,0) translate(-50%,-50%) scale(' + esc.toFixed(3) + ')';
+       px = p.x; py = p.y;
+      }
+      lx += (mx - lx) * 0.22; ly += (my - ly) * 0.22;
+      lab.style.transform = 'translate3d(' + lx.toFixed(1) + 'px,' + (ly + 34).toFixed(1) +
+       'px,0) translate(-50%,-50%)';
       requestAnimationFrame(loop);
      })();
     }
